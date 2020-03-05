@@ -67,8 +67,8 @@ int main()
     else
         printf("server acccept the client...\n"); 
 
-    valread = read (connfd, buff, 1024);
-    printf("%s\n", buff);
+    //valread = read (connfd, buff, 1024);
+    //printf("%s\n", buff);
     send(connfd, hello, strlen(hello), 0);
     printf("Hello from server sent\n");
 
@@ -120,7 +120,26 @@ int main()
     				client_socket[i] = new_socket;
     				printf("Adding to list of sockets as %d\n", i);
     				valread = read (client_socket[i], buff, 1024);
-	    			printf("%s\n", buff);
+	    			//printf("%s\n", buff);
+	    			char *ok = "Command ok";
+	    			if(strcmp(buff, "USER")==0)
+	    			{
+	    				memset(buff, 0, sizeof(buff));
+	    				valread=0;
+	    				send(client_socket[i], ok, strlen(ok), 0);
+	    				//valread = read (client_socket[i], buff, 1024);
+	    				printf("Buffer is %s\n", buff);
+
+	    			}
+	    			else if(strcmp(buff, "PASS")==0)
+	    			{
+	    				memset(buff, 0, sizeof(buff));
+	    				valread=0;
+	    				send(client_socket[i], ok, strlen(ok), 0);
+	    				//valread = read (client_socket[i], buff, 1024);
+	    				printf("Buffer is %s\n", buff);
+
+	    			}
     				break;
     			}
     		}

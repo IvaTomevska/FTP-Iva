@@ -1,11 +1,20 @@
 #include <netdb.h> 
-#include <stdio.h> /* for printf and fprintf */
-#include <stdlib.h> /* for atoi */
-#include <string.h> /* for memset */
-#include <sys/socket.h> /* for socket, connect, send, and recv */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#define delim " \t\r\n\a"
 #define MAX 80 
 #define PORT 8080 
 #define SA struct sockaddr 
+
+/* Read input */
+char *read_line(void){
+    char *buffer = NULL;
+    size_t bufsize = 0;
+    getline(&buffer, &bufsize, stdin);
+    return buffer;
+}
 
   
 int main() 
@@ -37,7 +46,60 @@ int main()
         exit(0); 
     } 
     else
-        printf("connected to the server..\n"); 
+        printf("connected to the server..\n");
+
+    while(1){
+    	printf("ftp> ");
+
+    	//Read the input and store into str
+		char *inputstr = read_line();
+		printf("%s", inputstr);
+
+		if(*inputstr==NULL){
+			break;
+		}
+
+		//tokenize the string
+		char **tokens[64];
+		char *token=NULL;
+		int i = 0;
+		token = strtok(inputstr,delim);
+		while (token != NULL){
+			tokens[i] = token;
+			i++;
+			if (i == 64)
+				tokens[i] ==NULL;
+			token = strtok(NULL, delim);
+		}
+		tokens[i]=NULL;
+
+		if(strcmp(tokens[0],"USER")==0){
+			send(sockfd, tokens[0], strlen(tokens[0]), 0);
+			printf("Command sent to server\n");
+			valread=read(sockfd, buff, 1024);
+			if(strcmp(buff,"Command ok")){
+				send(sockfd, tokens[1], strlen(tokens[1]), 0);
+				printf("SERVER SAID OK\n");
+			}
+			//send(sockfd, tokens[1], strlen(tokens[1]), 0);
+			/*printf("%s\n", tokens[0]);
+			printf("%s\n", tokens[1]);
+			strcat(tokens[0], tokens[1]);
+			printf("%s\n", tokens[0]);*/
+
+		}
+		else if(strcmp(tokens[0],"PASS")==0){
+			send(sockfd, tokens[0], strlen(tokens[0]), 0);
+			printf("Command sent to server\n");
+			valread=read(sockfd, buff, 1024);
+			if(strcmp(buff,"Command ok")){
+				send(sockfd, tokens[1], strlen(tokens[1]), 0);
+				printf("SERVER SAID OK\n");
+			}
+		}
+
+
+    } 
 
     send(sockfd, hello, strlen(hello), 0);
     printf("Hello from client sent\n");
