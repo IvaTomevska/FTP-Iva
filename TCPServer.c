@@ -6,25 +6,30 @@
 #include <sys/socket.h> 
 #include <sys/types.h> 
 #include <sys/select.h>
+#include <pwd.h>
 #define MAX 80 
-#define PORT 8080 
+#define PORT 8087
 #define SA struct sockaddr
+#define delim " \t\r\n\a"
 
 
 int main() 
 { 
-    int sockfd_master, connfd, len, i, max_fd;
-    int new_socket, activity; 
+    int sockfd_master, len, i, max_fd, sockfd, check;
+    int new_socket, activity, valread, client_socket[30], max_clients=30; 
     struct sockaddr_in servaddr, cliaddr; 
+    struct passwd pwd; //*check;
     char *hello = "Hello from server";
     char buff[1024];//data buffer
 
-    fd_set read_fd_set; //temp file desctiptor list for select()
-    fd_set sockfd_master_set; //master file descriptor list
+    fd_set read_fd_set; //file desctiptor list
+
+    //Initialize client sockets to 0
+    for(i=0; i<max_clients; i++) 
+        client_socket[i]=0;
 
     //Slear the sets
     FD_ZERO(&read_fd_set);
-    FD_ZERO(&sockfd_master_set);
   
     //Socket create and verification 
     sockfd_master = socket(AF_INET, SOCK_STREAM, 0); 
@@ -59,59 +64,133 @@ int main()
         printf("Server listening..\n"); 
     
     len = sizeof(cliaddr); 
-  
-    //Accept the data packet from client and verification 
-    connfd = accept(sockfd_master, (SA*)&cliaddr, &len); 
-    if (connfd < 0) { 
-        printf("Server acccept failed...\n"); 
-        exit(0); 
-    } 
-    else
-        printf("Server acccept the client...\n");
-
-    //Add master socket to set
-    FD_SET(sockfd_master, &sockfd_master_set);
-    max_fd = sockfd_master; 
 
 
     send(connfd, hello, strlen(hello), 0);
     printf("Hello from server sent\n");
+    while(1) {
+        FD_ZERO(&read_fd_set);
+        printf("mmm\n");
 
-    while(1)
-    {
-        read_fd_set = sockfd_master_set;
-    	
+        //Add master socket to set
+        FD_SET(sockfd_master, &read_fd_set);
+        max_fd = sockfd_master;
+        printf("%d",max_fd);
+
+        //Add child socket to set
+        for(i=0; i<max_clients; i++) {
+            printf("%d\n", i);
+            sockfd = client_socket[i];
+
+            //Check validity
+            if(sockfd > 0)
+            {
+            printf("tatko ti e zena\n");
+            FD_SET(sockfd, &read_fd_set);
+                }
+            //Highest fd number (for select ftn)
+            if(sockfd > max_fd)
+                max_fd = sockfd;
+        }
+    	printf("%d\n", max_fd);
     	//Wait for activity
     	activity = select(max_fd + 1, &read_fd_set, NULL, NULL, NULL);
+        
+        if(activity < 0)
+            {printf("Select function error\n");
+                        continue;}
 
-    	if(activity < 0)
-    		printf("Select function error\n");
+        /*If something happened to mamaster socket
+        then it is an incoming connection*/
+        if(FD_ISSET(sockfd_master, &read_fd_set)){
 
-        //Run through the existing connections looking for data to read
-        for(i=0; i <= max_fd; i++) {
-            if(FD_ISSET(i, &read_fd_set)) {
-                if(i == sockfd_master) {
-                    //Handle new connections
-                    len = sizeof(cliaddr);
+            if ((new_socket = accept(sockfd_master, (SA*)&cliaddr, &len))<0) {
+                perror("accept");
+                exit(EXIT_FAILURE);
+            }
+            printf("Accepted connection\n");
+            // Now server is ready to listen and verification 
+            if ((listen(sockfd_master, 5)) != 0) { 
+                printf("Listen failed...\n"); 
+                exit(0); 
+            } 
+            printf("Server listening..\n"); 
+            
 
-                    if((new_socket = accept(sockfd_master, (SA*)&cliaddr, &len))<0) {
-                        perror("Accept function error\n");
-                        exit(EXIT_FAILURE);
-                    }
-                    else {
-                        FD_SET(new_socket, &sockfd_master_set);
+            //send new connection hello message
+            if(send(new_socket, hello, strlen(hello), 0) != strlen(hello))
+                perror("send");
 
-                        //Keep track of highest fd number
-                        if(new_socket > max_fd)
-                            max_fd = new_socket;
+            printf("Hello message sent succesfully\n");
 
-                        printf("New connection from %d on socket %d\n", inet_ntoa(cliaddr.sin_addr), new_socket);
-                    }
+            //add new socket to array and listen to it's message
+            for(i=0; i<max_clients; i++) {
+                if(client_socket[i] == 0) {
+                    
+                    client_socket[i] = new_socket;
+                    printf("Adding to list of sockets as %d\n", i);
+                    break;
                 }
             }
-        }	
+        }
+
+        //tokenize the string
+        /*const char *tokens[64];
+        char *token=NULL;
+        int i = 0;
+        token = strtok(buff,delim);
+        while (token != NULL){
+          tokens[i] = token;
+          i++;
+          if (i == 64)
+            tokens[i] ==NULL;
+          token = strtok(NULL, delim);
+        }
+        tokens[i]=NULL;*/
+
+        for(i=0; i<max_clients; i++) {
+            memset(buff, 0, sizeof(buff));
+            sockfd = client_socket[i];
+            if(FD_ISSET(sockfd, &read_fd_set)) {
+                if (valread = read (sockfd, buff, 1024)==0) {
+                    close(sockfd);
+                    client_socket[i]=0;
+                    printf("Client disconnected\n");
+                }
+                else if(buff[0] == 'U' && buff[1] == 'S' && buff[2] == 'E' && buff[3] == 'R')
+                {
+                    char *msg;
+
+                    msg = "Username OK, Password required";
+                    send(client_socket[i], msg, strlen(msg), 0);
+                    printf("Checking user\n");
+
+                }
+                else if(buff[0] == 'P' && buff[1] == 'A' && buff[2] == 'S' && buff[3] == 'S')
+                {
+                    char *msg;
+
+                    memset(buff, 0, sizeof(buff));
+                    valread=0;
+                    msg = "Authentication complete";
+                    send(client_socket[i], msg, strlen(msg), 0);
+
+                }
+                 else if(buff[0] == 'P' && buff[1] == 'U' && buff[2] == 'T')
+                {
+                    char *msg;
+
+                    memset(buff, 0, sizeof(buff));
+                    valread=0;
+                    msg = "Authentication complete";
+                    send(client_socket[i], msg, strlen(msg), 0);
+
+                }
+                break;
+            }       
+        }
     }
-  
+    
     //Close the socket 
     close(sockfd_master); 
 }
