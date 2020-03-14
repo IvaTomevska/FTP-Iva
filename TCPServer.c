@@ -9,7 +9,7 @@
 #include <pwd.h>
 #include <string.h>
 #define MAX_CLIENTS 30 
-#define PORT 8089
+#define PORT 8090
 #define SA struct sockaddr
 #define delim " \t\r\n\a"
 #define BUFSIZE 1024
@@ -17,6 +17,13 @@ char ** users;
 char ** pws;
 int usersNum = 0;
 
+struct user
+{
+    int user;
+    int pass;
+};
+
+struct user userList[MAX_CLIENTS];
 
 int main() 
 { 
@@ -24,8 +31,6 @@ int main()
     int new_socket, activity, valread, client_socket[MAX_CLIENTS];
     memset(client_socket, 0, sizeof(client_socket));
     struct sockaddr_in servaddr, cliaddr; 
-    struct passwd pwd; //*check;
-    char *hello = "Hello from server";
     char buff[BUFSIZE];//data buffer
 
     if(createAcc() == -1) {
@@ -47,7 +52,7 @@ int main()
         exit(0); 
     } 
     //else
-      //  printf("Socket successfully created..\n"); 
+    //printf("Socket successfully created..\n"); 
     
     bzero(&servaddr, sizeof(servaddr)); 
   
@@ -74,9 +79,11 @@ int main()
     
     len = sizeof(cliaddr); 
 
+    for (i=0; i<MAX_CLIENTS; i++) {
+        userList[i].user = -1;
+        userList[i].pass = 0;
+    }
 
-    //send(connfd, hello, strlen(hello), 0);
-    //printf("Hello from server sent\n");
     while(1) {
         FD_ZERO(&read_fd_set);
 
@@ -98,9 +105,9 @@ int main()
             if(sockfd > max_fd)
                 max_fd = sockfd;
         }
-    	//printf("%d\n", max_fd);
-    	//Wait for activity
-    	activity = select(max_fd + 1, &read_fd_set, NULL, NULL, NULL);
+        //printf("%d\n", max_fd);
+        //Wait for activity
+        activity = select(max_fd + 1, &read_fd_set, NULL, NULL, NULL);
         
         if(activity < 0)
             {printf("Select function error\n");
@@ -120,14 +127,6 @@ int main()
                 printf("Listen failed...\n"); 
                 exit(0); 
             } 
-            //printf("Server listening..\n"); 
-            
-
-            //send new connection hello message
-            /*if(send(new_socket, hello, strlen(hello), 0) != strlen(hello))
-                perror("send");*/
-
-            //printf("Hello message sent succesfully\n");
 
             //add new socket to array and listen to it's message
             for(i=0; i<MAX_CLIENTS; i++) {
@@ -153,42 +152,13 @@ int main()
                     buff[valread-1] = '\0';//NULL terminating buffer
                     char *temp = malloc (strlen(buff)*sizeof(char));
                     strcpy(temp, buff);
-                    printf("%s\n", buff);
-                    execute(temp);
+                    //printf("%s\n", buff);
+                    execute(temp, sockfd, i);
                     free(temp);
 
                     //memset(buff, 0, sizeof(buff));
 
                 }
-
-                    /*if(buff[0] == 'U' && buff[1] == 'S' && buff[2] == 'E' && buff[3] == 'R')
-                {
-                    char *msg;
-
-                    msg = "Username OK, Password required";
-                    send(client_socket[i], msg, strlen(msg), 0);
-                    printf("Checking user\n");
-
-                }
-                else if(buff[0] == 'P' && buff[1] == 'A' && buff[2] == 'S' && buff[3] == 'S')
-                {
-                    char *msg;
-                    memset(buff, 0, sizeof(buff));
-                    valread=0;
-                    msg = "Authentication complete";
-                    send(client_socket[i], msg, strlen(msg), 0);
-
-                }
-                 else if(buff[0] == 'P' && buff[1] == 'U' && buff[2] == 'T')
-                {
-                    char *msg;
-
-                    memset(buff, 0, sizeof(buff));
-                    valread=0;
-                    msg = "Authentication complete";
-                    send(client_socket[i], msg, strlen(msg), 0);
-
-                }*/
                 break;
             }       
         }
@@ -198,6 +168,7 @@ int main()
     close(sockfd_master); 
 }
 
+/*Primary function that stores users and passwords*/
 int createAcc(void) {
     printf("Enter number of users: ");
     char *temp = malloc(BUFSIZE*sizeof(char));
@@ -221,9 +192,8 @@ int createAcc(void) {
             return -1;
         }
     }
-    //printf("%s\n", temp);
-    int usernum=atoi(temp);
-    //printf("%d\n", usernum);
+
+    int usernum=atoi(temp);;
     users = malloc(usernum*sizeof(char*));
     pws = malloc(usernum*sizeof(char*));
     for (int i=0; i < usernum; i++) {
@@ -240,6 +210,7 @@ int createAcc(void) {
         This is so it doesn't mess up the comparison*/
         temp[strlen(temp)-1] = '\0';
         strcpy(users+i, temp);
+        //printf("%s\n", users+i);;
 
         printf("Enter password for %s: ", users+i);
         input = getline(&temp, &size, stdin);
@@ -262,20 +233,82 @@ int createAcc(void) {
 
 }
 
+/*Tokenizing the string to seperate the command name from input*/
+char** tokenizeString(char *input) {
+    if(input == NULL)
+        return NULL;
 
-void execute(char **input) {
+    char **tokens = malloc(BUFSIZE*sizeof(char*));
+    char *token = malloc(BUFSIZE*sizeof(char*));
+    int i = 0;
+    token = strtok(input,delim);
+    while (token != NULL){
+        tokens[i] = token;
+        i++;
+        if (i == 64)
+            tokens[i] ==NULL;
+        token = strtok(NULL, delim);
+    }
+    tokens[i]=NULL;
+    return tokens;
 
-    char *args;
-    args = strtok(input, " ");
-    while(args != NULL) {
-        if(strcmp(args, "USER")==0)
-            printf("%s\n", args );
-        if(strcmp(args, "PASS")==0)
-            printf("%s\n", args );
-        //printf("sex1\n");
-        args = strtok (NULL, " ");
-        //printf("%s\n", args[0] );
-        //args++;
+}
+
+/*Searching for the user by username 
+and sending message to client*/
+void findUser(char *input, int socket, int user) {
+    for(int i=0; i<usersNum; i++) {
+        if(!strcmp(input, users+i)){
+            printf("Yes sex8\n");
+            userList[user].user = i;
+            send(socket, "User found\n", 20, 0);
+            return;
+        }
+    }
+    send(socket, "User not found!\n", 15, 0);
+}
+
+/*Checking is password is correct*/
+void checkpw(char *input, int socket, int user) {
+    if(!strcmp((pws+userList[user].user), input)) {
+        userList[user].pass = 1;
+        send(socket, "Logged in!\n", 15, 0);
+        return;
+    }
+    send(socket, "Wrong password\n", 20, 0);
+}
+
+
+/*Function that distinguishes the commands 
+and calls for functions to execute them*/
+void execute(char *input, int socket, int user) {
+
+    char **args = tokenizeString(input);
+    while(1) {
+        printf("Yes sex1\n");
+        printf("%d\n", userList[user].user);
+        if(strcmp(args[0], "USER")==0) {           
+            if(userList[user].user==-1) 
+                findUser(args[1], socket, user);
+            else
+                send(socket, "User already selectied!\n", 25, 0);
+            return;
+
+        }
+        if(strcmp(args[0], "PASS")==0) {
+            //printf("%s\n", args );
+            if(userList[user].user==-1) {
+                send(socket, "Select user!\n", 25, 0);
+                return;
+            }
+            if(!userList[user].pass)
+                checkpw(args[1], socket, user);
+            else
+                send(socket, "User already logged in!\n", 25, 0);
+            return;
+            //if(!userList[user].pass)
+        }
+        //break;
     }
     //printf("%s\n",  );
 }

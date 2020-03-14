@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #define delim " \t\r\n\a"
 #define MAX 80 
-#define PORT 8089
+#define PORT 8090
 #define SA struct sockaddr 
 
 /* Read input */
