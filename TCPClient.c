@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #define delim " \t\r\n\a"
 #define MAX 80 
-#define PORT 8087
+#define PORT 8089
 #define SA struct sockaddr 
 
 /* Read input */
@@ -33,6 +33,7 @@ int main()
     } 
     else
         printf("Socket successfully created..\n"); 
+    
     bzero(&servaddr, sizeof(servaddr)); 
   
     //Assign IP, PORT 
@@ -50,10 +51,10 @@ int main()
 
     
 
-    send(sockfd, hello, strlen(hello), 0);
-    printf("Hello from client sent\n");
-    valread=read(sockfd, buff, 1024);
-    printf("%s\n",buff );
+    //send(sockfd, hello, strlen(hello), 0);
+    //printf("Hello from client sent\n");
+    //valread=read(sockfd, buff, 1024);
+    //printf("%s\n",buff );
 
     while(1){
     	printf("ftp> ");
@@ -64,20 +65,6 @@ int main()
 
 	    if(*inputstr==NULL)
 	      break;
-
-	  	//tokenize the string
-	  	/*const char *tokens[64];
-	  	char *token=NULL;
-	  	int i = 0;
-	  	token = strtok(buff,delim);
-	  	while (token != NULL){
-	  	  tokens[i] = token;
-	  	  i++;
-	  	  if (i == 64)
-	  	    tokens[i] ==NULL;
-	  	  token = strtok(NULL, delim);
-	  	}
-	  	tokens[i]=NULL;*/
 
 	  	memset(buff, 0, sizeof(buff));
 	  	send(sockfd, inputstr, strlen(inputstr), 0);
