@@ -61,7 +61,7 @@ int main()
 
     	//Read the input and store into str
     	char *inputstr = read_line();
-    	printf("%s", inputstr);
+    	//printf("%s", inputstr);
 
 	    if(*inputstr==NULL)
 	      break;
@@ -82,7 +82,7 @@ int main()
 	  		printf("%s\n",buff );
 	  	}
 	    
-	   if(inputstr[0] == 'P' && inputstr[1] == 'U' && inputstr[2] == 'T') {
+	   if(inputstr[0] == 'P' && inputstr[1] == 'W' && inputstr[2] == 'D') {
 		   	send(sockfd, inputstr, strlen(inputstr), 0);
 		   	printf("Input sent to server\n");
 		   	valread=read(sockfd, buff, 1024);

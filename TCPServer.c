@@ -8,6 +8,7 @@
 #include <sys/select.h>
 #include <pwd.h>
 #include <string.h>
+#include <unistd.h>
 #define MAX_CLIENTS 30 
 #define PORT 8090
 #define SA struct sockaddr
@@ -38,8 +39,6 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    //printf("%s\n", );
-
     fd_set read_fd_set; //file desctiptor list
 
     //Slear the sets
@@ -66,8 +65,6 @@ int main()
         printf("Socket bind failed...\n"); 
         exit(0); 
     } 
-    //else
-      //  printf("Socket successfully binded..\n"); 
   
     //Now server is ready to listen and verification 
     if ((listen(sockfd_master, 5)) != 0) { 
@@ -90,11 +87,9 @@ int main()
         //Add master socket to set
         FD_SET(sockfd_master, &read_fd_set);
         max_fd = sockfd_master;
-        //printf("%d",max_fd);
 
         //Add child socket to set
         for(i=0; i<MAX_CLIENTS; i++) {
-            //printf("%d\n", i);
             sockfd = client_socket[i];
 
             //Check validity
@@ -105,7 +100,7 @@ int main()
             if(sockfd > max_fd)
                 max_fd = sockfd;
         }
-        //printf("%d\n", max_fd);
+
         //Wait for activity
         activity = select(max_fd + 1, &read_fd_set, NULL, NULL, NULL);
         
@@ -131,7 +126,6 @@ int main()
             //add new socket to array and listen to it's message
             for(i=0; i<MAX_CLIENTS; i++) {
                 if(client_socket[i] == 0) {
-                    
                     client_socket[i] = new_socket;
                     printf("Adding to list of sockets as %d\n", i);
                     break;
@@ -155,9 +149,6 @@ int main()
                     //printf("%s\n", buff);
                     execute(temp, sockfd, i);
                     free(temp);
-
-                    //memset(buff, 0, sizeof(buff));
-
                 }
                 break;
             }       
@@ -210,7 +201,6 @@ int createAcc(void) {
         This is so it doesn't mess up the comparison*/
         temp[strlen(temp)-1] = '\0';
         strcpy(users+i, temp);
-        //printf("%s\n", users+i);;
 
         printf("Enter password for %s: ", users+i);
         input = getline(&temp, &size, stdin);
@@ -261,21 +251,33 @@ void findUser(char *input, int socket, int user) {
         if(!strcmp(input, users+i)){
             printf("Yes sex8\n");
             userList[user].user = i;
-            send(socket, "User found\n", 20, 0);
+            send(socket, "User found", 20, 0);
             return;
         }
     }
-    send(socket, "User not found!\n", 15, 0);
+    send(socket, "User not found!", 15, 0);
 }
 
 /*Checking is password is correct*/
 void checkpw(char *input, int socket, int user) {
     if(!strcmp((pws+userList[user].user), input)) {
         userList[user].pass = 1;
-        send(socket, "Logged in!\n", 15, 0);
+        send(socket, "Logged in!", 15, 0);
         return;
     }
-    send(socket, "Wrong password\n", 20, 0);
+    send(socket, "Wrong password", 20, 0);
+}
+
+/*void put(char *filename) {
+
+}*/
+
+//Send current working dir to client
+void pwd(int socket) {
+    static char cwd[BUFSIZE];
+    getcwd(cwd, sizeof(cwd));
+    send(socket, cwd, BUFSIZE, 0);
+
 }
 
 
@@ -285,28 +287,37 @@ void execute(char *input, int socket, int user) {
 
     char **args = tokenizeString(input);
     while(1) {
-        printf("Yes sex1\n");
-        printf("%d\n", userList[user].user);
         if(strcmp(args[0], "USER")==0) {           
             if(userList[user].user==-1) 
                 findUser(args[1], socket, user);
             else
-                send(socket, "User already selectied!\n", 25, 0);
+                send(socket, "User already selectied!", 25, 0);
             return;
 
         }
         if(strcmp(args[0], "PASS")==0) {
-            //printf("%s\n", args );
             if(userList[user].user==-1) {
-                send(socket, "Select user!\n", 25, 0);
+                send(socket, "Select user!", 25, 0);
                 return;
             }
             if(!userList[user].pass)
                 checkpw(args[1], socket, user);
             else
-                send(socket, "User already logged in!\n", 25, 0);
+                send(socket, "User already logged in!", 25, 0);
             return;
-            //if(!userList[user].pass)
+        }
+        if(strcmp(args[0], "PUT")==0) {
+            if(args[1] == NULL) {
+                send(socket, "No file specified!", 25, 0);
+                return;
+            }
+            //put(args[1]);
+            return;
+        }
+        if(strcmp(args[0], "PWD")==0) {
+            //printf("cwd123\n");
+            pwd(socket);
+            return;
         }
         //break;
     }
