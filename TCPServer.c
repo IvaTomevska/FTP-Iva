@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <errno.h>
 #define MAX_CLIENTS 30 
 #define PORT 8092
 #define SA struct sockaddr
@@ -258,7 +259,7 @@ and sending message to client*/
 void findUser(char *input, int socket, int user) {
     for(int i=0; i<usersNum; i++) {
         if(!strcmp(input, users+i)){
-            printf("Yes sex8\n");
+            //printf("Yes sex8\n");
             userList[user].user = i;
             send(socket, "User found", 20, 0);
             return;
@@ -289,6 +290,7 @@ void pwd(int socket, int user) {
     free(cwd);
 }
 
+//List files in sirrent directory ftn
 void ls(int socket, int user) {
     DIR *curdir;
     char *buff = malloc(BUFSIZE*sizeof(char));
@@ -302,6 +304,39 @@ void ls(int socket, int user) {
     printf("%s\n",buff );
     send(socket, buff, BUFSIZE, 0);
     free(buff);
+}
+
+/*CD ftn, moves the directory of the server
+chdir does the checks, tmp holds original locations,
+after updating the client, go back to the original*/
+void cd(char **args, int socket, int user) {
+    char *path = malloc(BUFSIZE*sizeof(char));
+    if(args[1]==NULL) {
+        free(path);
+        send(socket, "Invalid path\n", 15, 0);
+        return;
+    }
+    strcpy(path, args[1]);
+    char *temp = malloc(BUFSIZE*sizeof(char));
+    char *buff = malloc(BUFSIZE*sizeof(char));
+    getwd(buff);
+    strcpy(temp,buff);
+    chdir(userList[user].currDir);
+    printf("%s\n", path);
+    if(chdir(path) != 0) {
+        send(socket, strerror(errno), BUFSIZE, 0);
+        free(temp);
+        free(path);
+        return;
+    }
+    getwd(buff);
+    strcpy(userList[user].currDir,buff);
+
+    chdir(temp);
+    free(temp);
+    free(path);
+    send(socket, buff, BUFSIZE, 0);
+
 }
 
 
@@ -319,6 +354,7 @@ void execute(char *input, int socket, int user) {
             return;
 
         }
+
         if(strcmp(args[0], "PASS")==0) {
             if(userList[user].user==-1) {
                 send(socket, "Select user!", 25, 0);
@@ -330,6 +366,7 @@ void execute(char *input, int socket, int user) {
                 send(socket, "User already logged in!", 25, 0);
             return;
         }
+
         if(strcmp(args[0], "PUT")==0) {
             if(args[1] == NULL) {
                 send(socket, "No file specified!", 25, 0);
@@ -338,14 +375,20 @@ void execute(char *input, int socket, int user) {
             //put(args[1]);
             return;
         }
+
         if(strcmp(args[0], "PWD")==0) {
-            printf("123\n");
+            //printf("123\n");
             pwd(socket, user);
             return;
         }
+
         if(strcmp(args[0], "LS")==0) {
-            //printf("EDEN\n");
             ls(socket, user);
+            return;
+        }
+
+        if(strcmp(args[0], "CD")==0) {
+            cd(args, socket, user);
             return;
         }
         //break;

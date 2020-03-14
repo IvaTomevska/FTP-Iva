@@ -62,8 +62,8 @@ int main()
 	      break;
 
 	  	memset(buff, 0, sizeof(buff));
-	  	send(sockfd, inputstr, strlen(inputstr), 0);
-	  	send(sockfd, inputstr, strlen(inputstr), 0);
+	  	//send(sockfd, inputstr, strlen(inputstr), 0);
+	  	//send(sockfd, inputstr, strlen(inputstr), 0);
 	  	if(inputstr[0] == 'U' && inputstr[1] == 'S' && inputstr[2] == 'E' && inputstr[3] == 'R') {
 	   		send(sockfd, inputstr, strlen(inputstr), 0);
 	  		printf("Input sent to server\n");
@@ -82,13 +82,19 @@ int main()
 		   	printf("Input sent to server\n");
 		   	valread=read(sockfd, buff, 1024);
 		   	printf("%s\n",buff );
-	   }
+	   	}
 		if(inputstr[0] == 'L' && inputstr[1] == 'S') {
 	   	   	send(sockfd, inputstr, strlen(inputstr), 0);
 	   	   	printf("Input sent to server\n");
 	   	   	valread=read(sockfd, buff, 1024);
 	   	   	printf("%s\n",buff );
-	      }
+	    }
+	    if(inputstr[0] == 'C' && inputstr[1] == 'D') {
+	   	   	send(sockfd, inputstr, strlen(inputstr), 0);
+	   	   	printf("Input sent to server\n");
+	   	   	valread=read(sockfd, buff, 1024);
+	   	   	printf("Now you're in dir: %s\n",buff );
+	    }
 	}  
     //Close the socket 
     close(sockfd); 
