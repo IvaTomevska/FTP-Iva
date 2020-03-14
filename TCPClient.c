@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #define delim " \t\r\n\a"
 #define MAX 80 
-#define PORT 8090
+#define PORT 8092
 #define SA struct sockaddr 
 
 /* Read input */
@@ -51,11 +51,6 @@ int main()
 
     
 
-    //send(sockfd, hello, strlen(hello), 0);
-    //printf("Hello from client sent\n");
-    //valread=read(sockfd, buff, 1024);
-    //printf("%s\n",buff );
-
     while(1){
     	printf("ftp> ");
 
@@ -88,6 +83,12 @@ int main()
 		   	valread=read(sockfd, buff, 1024);
 		   	printf("%s\n",buff );
 	   }
+		if(inputstr[0] == 'L' && inputstr[1] == 'S') {
+	   	   	send(sockfd, inputstr, strlen(inputstr), 0);
+	   	   	printf("Input sent to server\n");
+	   	   	valread=read(sockfd, buff, 1024);
+	   	   	printf("%s\n",buff );
+	      }
 	}  
     //Close the socket 
     close(sockfd); 

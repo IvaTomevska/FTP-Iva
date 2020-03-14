@@ -9,8 +9,9 @@
 #include <pwd.h>
 #include <string.h>
 #include <unistd.h>
+#include <dirent.h>
 #define MAX_CLIENTS 30 
-#define PORT 8090
+#define PORT 8092
 #define SA struct sockaddr
 #define delim " \t\r\n\a"
 #define BUFSIZE 1024
@@ -22,6 +23,8 @@ struct user
 {
     int user;
     int pass;
+    char *currDir;//we need the directory for multiple finctions
+
 };
 
 struct user userList[MAX_CLIENTS];
@@ -32,7 +35,7 @@ int main()
     int new_socket, activity, valread, client_socket[MAX_CLIENTS];
     memset(client_socket, 0, sizeof(client_socket));
     struct sockaddr_in servaddr, cliaddr; 
-    char buff[BUFSIZE];//data buffer
+    char *buff=malloc(BUFSIZE*sizeof(char));//data buffer
 
     if(createAcc() == -1) {
         printf("Account creation fail\n");
@@ -79,9 +82,13 @@ int main()
     for (i=0; i<MAX_CLIENTS; i++) {
         userList[i].user = -1;
         userList[i].pass = 0;
+        userList[i].currDir = malloc(BUFSIZE*sizeof(char));
+        //printf("EDEN\n");
     }
 
     while(1) {
+        memset(buff, 0, sizeof(buff));
+
         FD_ZERO(&read_fd_set);
 
         //Add master socket to set
@@ -123,16 +130,18 @@ int main()
                 exit(0); 
             } 
 
-            //add new socket to array and listen to it's message
+            //Add new socket to array
             for(i=0; i<MAX_CLIENTS; i++) {
                 if(client_socket[i] == 0) {
                     client_socket[i] = new_socket;
+                    getwd(buff);
+                    strcpy(userList[i].currDir, (char*)buff);
                     printf("Adding to list of sockets as %d\n", i);
                     break;
                 }
             }
         }
-
+        //Check input from clients
         for(i=0; i<MAX_CLIENTS; i++) {
             memset(buff, 0, sizeof(buff));
             sockfd = client_socket[i];
@@ -273,11 +282,26 @@ void checkpw(char *input, int socket, int user) {
 }*/
 
 //Send current working dir to client
-void pwd(int socket) {
-    static char cwd[BUFSIZE];
-    getcwd(cwd, sizeof(cwd));
+void pwd(int socket, int user) {
+    char *cwd = malloc(BUFSIZE*sizeof(char));
+    strcpy(cwd, userList[user].currDir);
     send(socket, cwd, BUFSIZE, 0);
+    free(cwd);
+}
 
+void ls(int socket, int user) {
+    DIR *curdir;
+    char *buff = malloc(BUFSIZE*sizeof(char));
+    struct dirent *curfile;
+    curdir = opendir(userList[user].currDir);
+    char *nl="\n";
+    while ((curfile = readdir(curdir)) != NULL) {
+        strcat(buff, curfile->d_name);
+        strcat(buff, nl);
+    }
+    printf("%s\n",buff );
+    send(socket, buff, BUFSIZE, 0);
+    free(buff);
 }
 
 
@@ -315,8 +339,13 @@ void execute(char *input, int socket, int user) {
             return;
         }
         if(strcmp(args[0], "PWD")==0) {
-            //printf("cwd123\n");
-            pwd(socket);
+            printf("123\n");
+            pwd(socket, user);
+            return;
+        }
+        if(strcmp(args[0], "LS")==0) {
+            //printf("EDEN\n");
+            ls(socket, user);
             return;
         }
         //break;
