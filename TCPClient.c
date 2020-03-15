@@ -8,6 +8,8 @@
 #include <sys/sendfile.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <dirent.h>
+#include <errno.h>
 #define delim " \t\r\n\a"
 #define MAX 80 
 #define PORT 8093
@@ -109,13 +111,61 @@ void get(int socket, char *filename) {
     return;
 
 }
+
+void ls(void) {
+    DIR *curdir;
+    char *buff = malloc(BUFSIZE*sizeof(char));
+    getwd(buff);
+    struct dirent *curfile;
+    curdir = opendir(buff);
+    while ((curfile = readdir(curdir)) != NULL)
+        printf("%s\n", curfile->d_name);
+    free(buff);
+}
+
+void cd (char **args) {
+    char *path = malloc(BUFSIZE*sizeof(char));
+    if(args[1]==NULL) {
+        free(path);
+        printf("Invalid path\n");
+        return;
+    }
+    strcpy(path, args[1]);
+    if(chdir(path)!=0)
+        printf("%s\n", strerror(errno));
+    printf("Done\n");
+}
+
+void pwd(void) {
+    char *buff=malloc(BUFSIZE*sizeof(char));
+    getwd(buff);
+    printf("%s\n", buff);
+    free(buff);
+}
+
+int execute(char **args) {
+    if(strcmp(args[0], "PWD")==0) {
+        pwd();
+        //return;
+    }
+
+    if(strcmp(args[0], "LS")==0) {
+        ls();
+        //return;
+    }
+
+    if(strcmp(args[0], "CD")==0) {
+        cd(args);
+        //return;
+    }
+}
   
 int main() 
 {
     int sockfd, connfd, valread; 
     struct sockaddr_in servaddr, cli; 
 
-    char *hello="Hello from client";
+    //char *hello="Hello from client";
     char *buff=malloc(BUFSIZE*sizeof(char));
     char *inputstr=malloc(BUFSIZE*sizeof(char));
   
@@ -157,61 +207,40 @@ int main()
 
 	  	memset(buff, 0, sizeof(buff));
 
-	  	//If there is ! skip it and leave it to server to decide
-	  	if(!strncmp(inputstr, "!", 1)) {
-	  		inputstr++;
-	  	}
-
 	  	char **args=malloc(BUFSIZE*sizeof(char));
 	  	if((args=tokenizeString(inputstr))==NULL) {
 	  		printf("No input\n");
 	  		continue;
 	  	}
-	  	//printf("%s\n", inputstr);
 
-	  	if(strcmp(args[0], "USER")==0) {
+	  	if(strcmp(args[0], "USER")==0 
+            || strcmp(args[0], "PASS")==0 
+            || strcmp(args[0], "PWD")==0 
+            || strcmp(args[0], "LS")==0 
+            ||strcmp(args[0], "CD")==0) {
+
 	   		send(sockfd, inputstr, strlen(inputstr), 0);
-	  		//printf("Input sent to server\n");
 	  		valread=read(sockfd, buff, 1024);
-	  		printf("%s\n",buff );
+	  		printf("%s",buff );
 	  	}
-	  	if(strcmp(args[0], "PASS")==0) {
-	  		send(sockfd, inputstr, strlen(inputstr), 0);
-	  		//printf("Input sent to server\n");
-	  		valread=read(sockfd, buff, 1024);
-	  		printf("%s\n",buff );
-	  	}
-	    
-	   if(strcmp(args[0], "PWD")==0) {
-		   	send(sockfd, inputstr, strlen(inputstr), 0);
-		   	//printf("Input sent to server\n");
-		   	valread=read(sockfd, buff, 1024);
-		   	printf("%s\n",buff );
-	   	}
-		if(strcmp(args[0], "LS")==0) {
-	   	   	send(sockfd, inputstr, strlen(inputstr), 0);
-	   	   	//printf("Input sent to server\n");
-	   	   	valread=read(sockfd, buff, 1024);
-	   	   	printf("%s\n",buff );
-	    }
-	    if(strcmp(args[0], "CD")==0) {
-	   	   	send(sockfd, inputstr, strlen(inputstr), 0);
-	   	   	//printf("Input sent to server\n");
-	   	   	valread=read(sockfd, buff, 1024);
-	   	   	printf("Now you're in dir: %s\n",buff );
-	    }
 	    if(strcmp(args[0], "PUT")==0) {
 		   	send(sockfd, inputstr, strlen(inputstr), 0);
-		   	//printf("%s\n",args[1] );
-		   	//put(sockfd, args[1]);
-		   	//printf("Input sent to server\n");
-		   	//valread=read(sockfd, buff, 1024);
-		   	//printf("%s\n",buff );
+            //put(sockfd, args[1]);
 	   	}
 	   	if(strcmp(args[0], "GET")==0) {
 		   	send(sockfd, inputstr, strlen(inputstr), 0);
 			get(sockfd, args[1]);
 		}
+        if(!strncmp(args[0], "!", 1)) {
+            args[0]++;
+            if(!execute(args)) {
+                close(sockfd);
+                //free(instr);
+                free(buff);
+                exit(EXIT_SUCCESS);
+            }
+
+        }
 	}  
     //Close the socket 
     close(sockfd); 
