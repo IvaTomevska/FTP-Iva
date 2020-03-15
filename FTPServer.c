@@ -234,7 +234,7 @@ void findUser(char *input, int socket, int user) {
     for(int i=0; i<usersNum; i++) {
         if(!strcmp(input, users+i)){
             userList[user].user = i;
-            send(socket, "User found", 20, 0);
+            send(socket, "User found, password required!", 35, 0);
             return;
         }
     }
@@ -271,7 +271,6 @@ void ls(int socket, int user) {
         strcat(buff, curfile->d_name);
         strcat(buff, nl);
     }
-    printf("%s\n",buff );
     send(socket, buff, BUFSIZE, 0);
     free(buff);
 }
@@ -292,7 +291,7 @@ void cd(char **args, int socket, int user) {
     getwd(buff);
     strcpy(temp,buff);
     chdir(userList[user].currDir);
-    printf("%s\n", path);
+    //printf("%s\n", path);
     if(chdir(path) != 0) {
         send(socket, strerror(errno), BUFSIZE, 0);
         free(temp);
@@ -334,7 +333,6 @@ void put(char *filename, int socket, int user) {
         perror("Opening");
         return;
     }
-    printf("zzz\n");
     char *hold = malloc(instr);
     size_t r = 0;
     void *buf;
@@ -356,7 +354,6 @@ void put(char *filename, int socket, int user) {
             buf+=w;
         }
     }
-    printf("DONE\n");
     free(path);
     free(hold);
     close(file);

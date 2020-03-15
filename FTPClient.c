@@ -5,8 +5,8 @@
 int main(int argc, char *argv[]) 
 {
     /*Getting host and post number from command line*/
-    if(argv[1]==NULL) {
-        printf("Expected host name!\n");
+    if(argv[1]==NULL ) {
+        printf("Expected host name and port number!\n");
         exit(EXIT_FAILURE);
     }
     if(argv[2]==NULL) {
