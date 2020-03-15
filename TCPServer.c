@@ -6,13 +6,18 @@
 #include <sys/socket.h> 
 #include <sys/types.h> 
 #include <sys/select.h>
+#include <sys/stat.h>
+#include <sys/sendfile.h>
+#include <fcntl.h>
 #include <pwd.h>
+#include <ctype.h>
+#include <strings.h>
 #include <string.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
 #define MAX_CLIENTS 30 
-#define PORT 8092
+#define PORT 8093
 #define SA struct sockaddr
 #define delim " \t\r\n\a"
 #define BUFSIZE 1024
@@ -76,7 +81,7 @@ int main()
         exit(0); 
     } 
     //else
-    printf("Server listening and waiting for connection..\n"); 
+    printf("Server listening and waiting for a connection..\n"); 
     
     len = sizeof(cliaddr); 
 
@@ -278,10 +283,6 @@ void checkpw(char *input, int socket, int user) {
     send(socket, "Wrong password", 20, 0);
 }
 
-/*void put(char *filename) {
-
-}*/
-
 //Send current working dir to client
 void pwd(int socket, int user) {
     char *cwd = malloc(BUFSIZE*sizeof(char));
@@ -339,6 +340,99 @@ void cd(char **args, int socket, int user) {
 
 }
 
+/*void put(char *filename, int socket, int user) {
+    size_t instr;
+    //printf("%s\n", filename);
+    //int valread;
+    //char *buff = malloc(BUFSIZE);
+    //printf("ovde\n");
+    if(read(socket, &instr, sizeof(size_t))<0) {
+        perror("First read");
+        //printf("%d\n",instr );
+        return;
+    }
+    //valread=read(socket, &instr, sizeof(size_t));
+    //printf("%d\n", valread);
+    //printf("hehehehhe\n");
+    if(!instr) {
+        printf("Path or directory doesn't exist\n");
+        return;
+    }
+    int file;
+    //Create path
+    char *path = malloc(BUFSIZE);
+    strcpy(path, userList[user].currDir);
+    char *slash = "/";
+    strcat(path, slash);
+    strcat(path, filename);
+    path[strlen(path)] = '\0';
+    //printf("%s\n", path);
+
+    if((file = open(path, O_CREAT| O_WRONLY, 0666))<0) {
+        perror("Opening");
+        return;
+    }
+    printf("zzz\n");
+    char *hold = malloc(instr);
+    size_t r = 0;
+    void *buf;
+    size_t w;
+    while(0<instr) {
+        //printf("ppp\n");
+        r+= read(socket, hold, instr);
+        buf = hold;
+        if(r<0) {
+            perror("Second read");
+            free(hold);
+            close(file);
+            free(path);
+            return;
+        }
+        while(r>0) {
+            //printf("nesho\n");
+            w = write(file, buf, r);
+            instr-=w;
+            r-=w;
+            buf+=w;
+        }
+    }
+    printf("DONE\n");
+    //send(socket, "File created", 25, 0);
+    free(path);
+    free(hold);
+    close(file);
+    return;
+}*/
+
+void get(char  **args, int socket, int user) {
+    struct stat buf;
+    //Create path
+    char *path = malloc(BUFSIZE);
+    strcpy(path, userList[user].currDir);
+    char *slash = "/";
+    strcat(path, slash);
+    strcat(path, args[1]);
+    path[strlen(path)] = '\0';
+
+    stat(path, &buf);
+    size_t size = buf.st_size;
+    int file;
+    if((file = open(path, O_RDONLY))<0) {
+        perror("Opening error: ");
+        size = 0;
+        send(socket, &size, sizeof(size_t), 0);
+        free (path);
+        return;
+    }
+    send(socket, &size, sizeof(size_t), 0);
+    sendfile(socket, file, NULL, size);
+    printf("DONE\n");
+    free(path);
+    close(file);
+    return;
+
+}
+
 
 /*Function that distinguishes the commands 
 and calls for functions to execute them*/
@@ -372,8 +466,8 @@ void execute(char *input, int socket, int user) {
                 send(socket, "No file specified!", 25, 0);
                 return;
             }
-            //put(args[1]);
-            return;
+            //put(args[1], socket, user);
+            return 1;
         }
 
         if(strcmp(args[0], "PWD")==0) {
@@ -390,6 +484,15 @@ void execute(char *input, int socket, int user) {
         if(strcmp(args[0], "CD")==0) {
             cd(args, socket, user);
             return;
+        }
+
+        if(strcmp(args[0], "GET")==0) {
+            if(args[1] == NULL) {
+                send(socket, "No file specified!", 25, 0);
+                return;
+            }
+            get(args, socket, user);
+            return 1;
         }
         //break;
     }
